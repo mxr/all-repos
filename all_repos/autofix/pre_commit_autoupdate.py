@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import functools
 import os
 import sys
 import tempfile
@@ -43,8 +44,11 @@ def find_repos(config: Config) -> set[str]:
     return repos_matching(config, ('', '--', '.pre-commit-config.yaml'))
 
 
-def apply_fix() -> None:
-    autofix_lib.run(sys.executable, '-m', 'pre_commit', 'autoupdate')
+def apply_fix(*, freeze: bool = False) -> None:
+    freeze_args = ('--freeze',) if freeze else ()
+    autofix_lib.run(
+        sys.executable, '-m', 'pre_commit', 'autoupdate', *freeze_args,
+    )
     # This may return nonzero for fixes, that's ok!
     check_fix(check=False)
 
@@ -52,6 +56,11 @@ def apply_fix() -> None:
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     autofix_lib.add_fixer_args(parser)
+    parser.add_argument(
+        '--freeze',
+        action='store_true',
+        help='store frozen hashes in the pre-commit configuration.',
+    )
     args = parser.parse_args(argv)
 
     autofix_lib.assert_importable('pre_commit', install='pre-commit')
@@ -71,7 +80,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     with tmp_pre_commit_home():
         autofix_lib.fix(
             repos,
-            apply_fix=apply_fix,
+            apply_fix=functools.partial(apply_fix, freeze=args.freeze),
             check_fix=check_fix,
             config=config,
             commit=commit,
