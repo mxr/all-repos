@@ -45,6 +45,24 @@ def test_main(file_config, autoupdatable):
     )
 
 
+def test_main_freeze(file_config, autoupdatable):
+    ret = main((
+        '--config-filename', str(file_config.cfg),
+        '--repos', str(autoupdatable.update_repo),
+        '--freeze',
+    ))
+    assert not ret
+
+    ret = autoupdatable.consuming_repo.join('.pre-commit-config.yaml').read()
+    assert ret == (
+        f'repos:\n'
+        f'-   repo: {autoupdatable.hook_repo}\n'
+        f'    rev: {autoupdatable.hook_repo_rev}\n'
+        f'    hooks:\n'
+        f'    -   id: hook\n'
+    )
+
+
 def test_find_repos_none(file_config_files):
     assert find_repos(load_config(str(file_config_files.cfg))) == set()
 
